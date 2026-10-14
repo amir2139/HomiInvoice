@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HomiInvoice</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f3f4f8;--card:#fff;--text:#1d2433;--muted:#667085;--line:#dfe3ec;
+  --accent:#4f46e5;--accent-text:#fff;--input:#fff;--head:#eef0f8;
+}
+:root[data-theme="dark"]{
+  --bg:#0f1219;--card:#171c27;--text:#e6e9f2;--muted:#9aa3b8;--line:#2a3142;
+  --accent:#818cf8;--accent-text:#0f1219;--input:#1d2331;--head:#202737;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);
+  font-family:"Vazirmatn",Tahoma,"Segoe UI",system-ui,sans-serif;line-height:1.6}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;padding:12px;
+  position:sticky;top:0;background:var(--bg);z-index:2;border-bottom:1px solid var(--line)}
+button,select{font:inherit;color:var(--text);background:var(--card);border:1px solid var(--line);
+  border-radius:8px;padding:6px 12px;cursor:pointer}
+button.primary{background:var(--accent);color:var(--accent-text);border-color:var(--accent)}
+button:hover{filter:brightness(.95)}
+.sheet{max-width:860px;margin:16px auto;background:var(--card);border:1px solid var(--line);
+  border-radius:12px;padding:28px}
+h1{margin:0 0 4px;font-size:1.6rem}
+.meta{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin:16px 0}
+.parties{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:16px 0}
+@media(max-width:640px){.parties{grid-template-columns:1fr}.sheet{padding:16px}}
+fieldset{border:1px solid var(--line);border-radius:10px;padding:12px;margin:0}
+legend{padding:0 8px;color:var(--muted);font-weight:600}
+label{display:block;font-size:.85rem;color:var(--muted);margin-top:6px}
+input,textarea{width:100%;font:inherit;color:var(--text);background:var(--input);
+  border:1px solid var(--line);border-radius:6px;padding:6px 8px}
+input:focus,textarea:focus,button:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.tablewrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;margin:16px 0}
+th,td{border:1px solid var(--line);padding:6px;text-align:start;vertical-align:middle}
+th{background:var(--head);font-weight:600}
+td.num,th.num{text-align:end;white-space:nowrap}
+td input{border:none;background:transparent;padding:4px}
+.totals{margin-inline-start:auto;max-width:380px}
+.totals div{display:flex;justify-content:space-between;gap:12px;padding:4px 0;border-bottom:1px dashed var(--line)}
+.totals .grand{font-weight:700;font-size:1.15rem;border-bottom:2px solid var(--text)}
+.opts{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin:12px 0}
+.words{margin-top:14px;padding:10px 12px;background:var(--head);border-radius:8px;font-weight:600}
+.del{padding:2px 9px;color:#d33}
+.print-only{display:none}
+@page{size:A4;margin:12mm}
+@media print{
+  :root,:root[data-theme="dark"]{--bg:#fff;--card:#fff;--text:#000;--muted:#333;--line:#999;--input:#fff;--head:#eee}
+  body{background:#fff;font-size:11pt}
+  .toolbar,.noprint,.del,.opts button{display:none!important}
+  .sheet{max-width:none;margin:0;border:none;border-radius:0;padding:0}
+  input,textarea{border:none;padding:0;background:transparent;resize:none}
+  fieldset{break-inside:avoid}
+  tr{break-inside:avoid}
+  .print-only{display:block}
+}
+</style>
+</head>
+<body>
+<div class="toolbar">
+  <button id="btnLang"></button>
+  <button id="btnTheme"></button>
+  <button id="btnNew"></button>
+  <button id="btnExport"></button>
+  <button id="btnImport"></button>
+  <button id="btnPrint" class="primary"></button>
+  <input type="file" id="fileIn" accept="application/json,.json" hidden>
+</div>
+
+<main class="sheet" id="sheet">
+  <h1 data-i="title"></h1>
+  <div class="meta">
+    <div><label for="number" data-i="number"></label><input id="number"></div>
+    <div><label for="date" data-i="date"></label><input id="date" inputmode="numeric"></div>
+    <div><label for="currency" data-i="currency"></label>
+      <select id="currency"><option value="rial"></option><option value="toman"></option></select></div>
+  </div>
+
+  <div class="parties">
+    <fieldset><legend data-i="seller"></legend>
+      <label data-i="name" for="sName"></label><input id="sName">
+      <label data-i="phone" for="sPhone"></label><input id="sPhone">
+      <label data-i="address" for="sAddr"></label><input id="sAddr">
+    </fieldset>
+    <fieldset><legend data-i="buyer"></legend>
+      <label data-i="name" for="bName"></label><input id="bName">
+      <label data-i="phone" for="bPhone"></label><input id="bPhone">
+      <label data-i="address" for="bAddr"></label><input id="bAddr">
+    </fieldset>
+  </div>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr>
+      <th>#</th><th data-i="desc"></th><th class="num" data-i="qty"></th>
+      <th class="num" data-i="unit"></th><th class="num" data-i="rowTotal"></th><th class="noprint"></th>
+    </tr></thead>
+    <tbody id="rows"></tbody>
+  </table>
+  </div>
+  <button id="btnAdd" class="noprint"></button>
+
+  <div class="opts">
+    <div><label for="discount" data-i="discount"></label><input id="discount" type="number" min="0" step="any"></div>
+    <div><label for="tax" data-i="tax"></label><input id="tax" type="number" min="0" max="100" step="any"></div>
+  </div>
+
+  <div class="totals">
+    <div><span data-i="subtotal"></span><span id="tSub"></span></div>
+    <div><span data-i="discountAmt"></span><span id="tDisc"></span></div>
+    <div><span data-i="taxAmt"></span><span id="tTax"></span></div>
+    <div class="grand"><span data-i="total"></span><span id="tTotal"></span></div>
+  </div>
+  <div class="words" id="words"></div>
+  <label for="notes" data-i="notes"></label><textarea id="notes" rows="2"></textarea>
+</main>
+
+<script>
+/* ===== numtowords:start ===== */
+var NW_ONES=['','یک','دو','سه','چهار','پنج','شش','هفت','هشت','نه','ده','یازده','دوازده','سیزده','چهارده','پانزده','شانزده','هفده','هجده','نوزده'];
+var NW_TENS=['','','بیست','سی','چهل','پنجاه','شصت','هفتاد','هشتاد','نود'];
+var NW_HUND=['','صد','دویست','سیصد','چهارصد','پانصد','ششصد','هفتصد','هشتصد','نهصد'];
+var NW_SCALE=['','هزار','میلیون','میلیارد','تریلیون','کوادریلیون'];
+function nwBelow1000(n){
+  var parts=[],h=Math.floor(n/100),r=n%100;
+  if(h)parts.push(NW_HUND[h]);
+  if(r){
+    if(r<20)parts.push(NW_ONES[r]);
+    else{parts.push(NW_TENS[Math.floor(r/10)]);if(r%10)parts.push(NW_ONES[r%10]);}
+  }
+  return parts.join(' و ');
+}
+function numberToPersianWords(num){
+  num=Math.round(Number(num));
+  if(!isFinite(num))return '';
+  if(num===0)return 'صفر';
+  var neg=num<0;if(neg)num=-num;
+  if(num>=1e18)return '';
+  var s=BigInt(Math.floor(num)).toString(),groups=[];
+  while(s.length){groups.unshift(parseInt(s.slice(-3),10));s=s.slice(0,-3);}
+  var out=[];
+  groups.forEach(function(g,i){
+    if(!g)return;
+    var sc=NW_SCALE[groups.length-1-i];
+    out.push(nwBelow1000(g)+(sc?' '+sc:''));
+  });
+  return (neg?'منفی ':'')+out.join(' و ');
+}
+/* ===== numtowords:end ===== */
+
+/* ===== app ===== */
+var I18N={
+  fa:{title:'فاکتور',number:'شماره فاکتور',date:'تاریخ',currency:'واحد پول',rial:'ریال',toman:'تومان',
+    seller:'فروشنده',buyer:'خریدار',name:'نام',phone:'تلفن',address:'نشانی',
+    desc:'شرح',qty:'تعداد',unit:'قیمت واحد',rowTotal:'جمع',
+    discount:'تخفیف (مبلغ)',tax:'مالیات (درصد)',subtotal:'جمع اقلام',discountAmt:'تخفیف',taxAmt:'مالیات',
+    total:'مبلغ قابل پرداخت',notes:'توضیحات',add:'+ افزودن ردیف',del:'حذف',
+    print:'چاپ / PDF',export:'خروجی JSON',import:'ورودی JSON',newInv:'فاکتور جدید',
+    lang:'English',dark:'حالت تاریک',light:'حالت روشن',
+    confirmNew:'فاکتور فعلی پاک شود و فاکتور جدید ساخته شود؟',badFile:'فایل نامعتبر است.',itemPh:'شرح کالا یا خدمت'},
+  en:{title:'Invoice',number:'Invoice No.',date:'Date',currency:'Currency',rial:'Rial',toman:'Toman',
+    seller:'Seller',buyer:'Buyer',name:'Name',phone:'Phone',address:'Address',
+    desc:'Description',qty:'Qty',unit:'Unit price',rowTotal:'Total',
+    discount:'Discount (amount)',tax:'Tax (%)',subtotal:'Subtotal',discountAmt:'Discount',taxAmt:'Tax',
+    total:'Amount due',notes:'Notes',add:'+ Add row',del:'Delete',
+    print:'Print / PDF',export:'Export JSON',import:'Import JSON',newInv:'New invoice',
+    lang:'فارسی',dark:'Dark mode',light:'Light mode',
+    confirmNew:'Clear the current invoice and start a new one?',badFile:'Invalid file.',itemPh:'Item or service'}
+};
+var KEY='homiinvoice.v1',CKEY='homiinvoice.counter';
+var $=function(id){return document.getElementById(id)};
+
+function shamsiToday(){
+  try{
+    var p=new Intl.DateTimeFormat('en-u-ca-persian-nu-latn',{year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date()),o={};
+    p.forEach(function(x){o[x.type]=x.value});
+    return o.year+'/'+o.month+'/'+o.day;
+  }catch(e){return new Date().toISOString().slice(0,10).replace(/-/g,'/');}
+}
+function nextCounter(){
+  var n=1;
+  try{n=(parseInt(localStorage.getItem(CKEY),10)||0)+1;localStorage.setItem(CKEY,String(n));}catch(e){}
+  return n;
+}
+function freshState(lang,theme){
+  var d=shamsiToday();
+  return {lang:lang||'fa',theme:theme||'light',number:d.slice(0,4)+'-'+String(nextCounter()).padStart(3,'0'),date:d,
+    currency:'rial',seller:{name:'',phone:'',addr:''},buyer:{name:'',phone:'',addr:''},
+    items:[{desc:'',qty:1,price:0}],discount:0,tax:0,notes:''};
+}
+var S;
+function load(){
+  try{var r=localStorage.getItem(KEY);if(r){var o=JSON.parse(r);if(o&&Array.isArray(o.items))return o;}}catch(e){}
+  return null;
+}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){}}
+
+function num(v){
+  v=String(v==null?'':v).replace(/[۰-۹]/g,function(c){return c.charCodeAt(0)-1776})
+    .replace(/[٠-٩]/g,function(c){return c.charCodeAt(0)-1632}).replace(/٬|,/g,'').replace('٫','.');
+  var n=parseFloat(v);return isFinite(n)?n:0;
+}
+function fmt(n){
+  return Math.round(n).toLocaleString(S.lang==='fa'?'fa-IR':'en-US');
+}
+function calc(){
+  var sub=0;S.items.forEach(function(it){sub+=num(it.qty)*num(it.price)});
+  var disc=Math.min(Math.max(num(S.discount),0),sub);
+  var tax=(sub-disc)*Math.max(num(S.tax),0)/100;
+  return {sub:sub,disc:disc,tax:tax,total:sub-disc+tax};
+}
+function applyLang(){
+  var t=I18N[S.lang];
+  document.documentElement.lang=S.lang;
+  document.documentElement.dir=S.lang==='fa'?'rtl':'ltr';
+  document.documentElement.dataset.theme=S.theme;
+  document.querySelectorAll('[data-i]').forEach(function(e){e.textContent=t[e.dataset.i]});
+  var cur=$('currency');cur.options[0].textContent=t.rial;cur.options[1].textContent=t.toman;
+  $('btnLang').textContent=t.lang;
+  $('btnTheme').textContent=S.theme==='dark'?t.light:t.dark;
+  $('btnNew').textContent=t.newInv;$('btnExport').textContent=t.export;
+  $('btnImport').textContent=t.import;$('btnPrint').textContent=t.print;$('btnAdd').textContent=t.add;
+}
+function renderRows(){
+  var t=I18N[S.lang],tb=$('rows');tb.innerHTML='';
+  S.items.forEach(function(it,i){
+    var tr=document.createElement('tr');
+    tr.innerHTML='<td></td><td><input data-k="desc"></td><td class="num"><input data-k="qty" type="number" min="0" step="any"></td>'+
+      '<td class="num"><input data-k="price" type="number" min="0" step="any"></td><td class="num"></td>'+
+      '<td class="noprint"><button class="del" type="button"></button></td>';
+    var c=tr.children;
+    c[0].textContent=(S.lang==='fa'?(i+1).toLocaleString('fa-IR'):i+1);
+    var d=tr.querySelector('[data-k=desc]');d.value=it.desc;d.placeholder=t.itemPh;
+    tr.querySelector('[data-k=qty]').value=it.qty;
+    tr.querySelector('[data-k=price]').value=it.price;
+    var b=tr.querySelector('.del');b.textContent='✕';b.title=t.del;b.setAttribute('aria-label',t.del);
+    b.onclick=function(){S.items.splice(i,1);if(!S.items.length)S.items.push({desc:'',qty:1,price:0});renderRows();update();};
+    tr.querySelectorAll('input').forEach(function(inp){
+      inp.oninput=function(){it[inp.dataset.k]=inp.dataset.k==='desc'?inp.value:num(inp.value);update();};
+    });
+    tb.appendChild(tr);
+  });
+  update();
+}
+function update(){
+  var c=calc(),rows=$('rows').children;
+  S.items.forEach(function(it,i){rows[i].children[4].textContent=fmt(num(it.qty)*num(it.price))});
+  $('tSub').textContent=fmt(c.sub);$('tDisc').textContent=fmt(c.disc);
+  $('tTax').textContent=fmt(c.tax);$('tTotal').textContent=fmt(c.total);
+  var unit=I18N.fa[S.currency];
+  var w=numberToPersianWords(c.total)+' '+unit;
+  $('words').textContent=w;
+  save();
+}
+function fillForm(){
+  $('number').value=S.number;$('date').value=S.date;$('currency').value=S.currency;
+  $('sName').value=S.seller.name;$('sPhone').value=S.seller.phone;$('sAddr').value=S.seller.addr;
+  $('bName').value=S.buyer.name;$('bPhone').value=S.buyer.phone;$('bAddr').value=S.buyer.addr;
+  $('discount').value=S.discount;$('tax').value=S.tax;$('notes').value=S.notes;
+}
+function bind(){
+  var map={number:['number'],date:['date'],currency:['currency'],notes:['notes']};
+  Object.keys(map).forEach(function(k){$(k).oninput=function(){S[k]=this.value;update();};});
+  [['sName','seller','name'],['sPhone','seller','phone'],['sAddr','seller','addr'],
+   ['bName','buyer','name'],['bPhone','buyer','phone'],['bAddr','buyer','addr']].forEach(function(a){
+    $(a[0]).oninput=function(){S[a[1]][a[2]]=this.value;save();};
+  });
+  $('discount').oninput=function(){S.discount=num(this.value);update();};
+  $('tax').oninput=function(){S.tax=num(this.value);update();};
+  $('btnAdd').onclick=function(){S.items.push({desc:'',qty:1,price:0});renderRows();};
+  $('btnLang').onclick=function(){S.lang=S.lang==='fa'?'en':'fa';applyLang();renderRows();};
+  $('btnTheme').onclick=function(){S.theme=S.theme==='dark'?'light':'dark';applyLang();save();};
+  $('btnPrint').onclick=function(){window.print();};
+  $('btnNew').onclick=function(){
+    if(!confirm(I18N[S.lang].confirmNew))return;
+    S=freshState(S.lang,S.theme);fillForm();applyLang();renderRows();
+  };
+  $('btnExport').onclick=function(){
+    var blob=new Blob([JSON.stringify(S,null,2)],{type:'application/json'});
+    var a=document.createElement('a');a.href=URL.createObjectURL(blob);
+    a.download='invoice-'+String(S.number).replace(/[^\w-]+/g,'_')+'.json';
+    document.body.appendChild(a);a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(a.href)},1000);
+  };
+  $('btnImport').onclick=function(){$('fileIn').click();};
+  $('fileIn').onchange=function(){
+    var f=this.files[0];if(!f)return;var inp=this;
+    var r=new FileReader();
+    r.onload=function(){
+      try{
+        var o=JSON.parse(r.result);
+        if(!o||!Array.isArray(o.items))throw 0;
+        var base=freshState(S.lang,S.theme);
+        S=Object.assign(base,o);
+        S.seller=Object.assign({name:'',phone:'',addr:''},o.seller);
+        S.buyer=Object.assign({name:'',phone:'',addr:''},o.buyer);
+        if(!S.items.length)S.items.push({desc:'',qty:1,price:0});
+        if(!I18N[S.lang])S.lang='fa';
+        fillForm();applyLang();renderRows();
+      }catch(e){alert(I18N[S.lang].badFile);}
+      inp.value='';
+    };
+    r.readAsText(f);
+  };
+}
+function init(){
+  S=load();
+  if(!S){
+    var dark=false;
+    try{dark=window.matchMedia('(prefers-color-scheme: dark)').matches}catch(e){}
+    S=freshState('fa',dark?'dark':'light');
+  }
+  fillForm();applyLang();bind();renderRows();
+}
+if(typeof document!=='undefined'&&document.getElementById('sheet'))init();
+</script>
+</body>
+</html>
